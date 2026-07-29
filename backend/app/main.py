@@ -2,6 +2,9 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from .auth.dependencies import get_current_user
 from .db.connection import connect_db, disconnect_db, get_pool
+from .routers import conversations
+
+from .llm.gemini_client import generate_reply
 
 app = FastAPI(title="Gadsik.ai API")
 
@@ -12,6 +15,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(conversations.router)
 
 @app.on_event("startup")
 async def on_startup():
@@ -34,3 +39,14 @@ async def health_check_db():
 @app.get("/me")
 def read_current_user(user_id: str = Depends(get_current_user)):
     return {"user_id": user_id}
+    
+
+
+
+@app.get("/test-gemini")
+def test_gemini():
+    try:
+        reply = generate_reply("Say hello in one short sentence.")
+        return {"reply": reply}
+    except Exception as e:
+        return {"error": str(e), "error_type": type(e).__name__}
