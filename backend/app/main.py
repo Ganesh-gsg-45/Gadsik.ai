@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from .auth.dependencies import get_current_user
 from .db.connection import connect_db, disconnect_db, get_pool
-from .routers import conversations
+from .routers import conversations, documents
 
 from .llm.gemini_client import generate_reply
 
@@ -17,6 +17,7 @@ app.add_middleware(
 )
 
 app.include_router(conversations.router)
+app.include_router(documents.router)
 
 @app.on_event("startup")
 async def on_startup():

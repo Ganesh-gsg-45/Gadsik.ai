@@ -9,5 +9,6 @@ class Settings:
     SUPABASE_URL: str = os.environ["SUPABASE_URL"]
     DATABASE_URL: str = os.environ["DATABASE_URL"]
     GEMINI_API_KEY: str = os.environ["GEMINI_API_KEY"]
+    SUPABASE_SERVICE_ROLE_KEY: str = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
 settings = Settings()
