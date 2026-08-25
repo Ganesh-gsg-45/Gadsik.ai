@@ -1,13 +1,12 @@
 import chromadb
-
-CHROMA_PATH = "./chroma_db"
+from ..config import settings
 
 _client = None
 
 def get_chroma_client() -> chromadb.PersistentClient:
     global _client
     if _client is None:
-        _client = chromadb.PersistentClient(path=CHROMA_PATH)
+        _client = chromadb.PersistentClient(path=settings.CHROMA_PATH)
     return _client
 
 

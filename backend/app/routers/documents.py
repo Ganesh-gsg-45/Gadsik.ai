@@ -1,23 +1,69 @@
 import tempfile
 import os
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, UploadFile, File, Form, HTTPException, Query
+from pydantic import BaseModel
 from ..auth.dependencies import get_current_user
 from ..db.connection import get_pool
 from ..db import documents as doc_repo
 from ..schemas.document import DocumentOut
 from ..storage.supabase_storage import upload_file
 from ..rag.chunking import extract_text_from_pdf, chunk_text
-from ..rag.embeddings import embed_texts
-from ..rag.chroma_store import store_chunks
+from ..rag.embeddings import embed_texts, embed_query
+from ..rag.chroma_store import store_chunks, query_collection
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
-@router.post("/upload-test", response_model=DocumentOut)
-async def upload_test(
+
+# ── Background worker ─────────────────────────────────────────────────────────
+
+async def _process_document(pool, document_id: str, tmp_path: str, contents: bytes):
+    """
+    Runs PDF → chunk → embed → ChromaDB pipeline in the background.
+    The HTTP response has already been sent by the time this runs.
+    """
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp.write(contents)
+            tmp_path = tmp.name
+
+        pages = extract_text_from_pdf(tmp_path)
+        chunks = chunk_text(pages)
+
+        texts = [c["text"] for c in chunks]
+        embeddings = embed_texts(texts)
+
+        chunk_count = store_chunks(document_id, chunks, embeddings)
+
+        await pool.execute(
+            "UPDATE documents SET chroma_collection_id = $2 WHERE id = $1",
+            document_id, document_id
+        )
+        await doc_repo.update_document_status(pool, document_id, "ready")
+        print(f"✓ Document {document_id} ready with {chunk_count} chunks")
+
+    except Exception as e:
+        await doc_repo.update_document_status(pool, document_id, "failed", error_message=str(e))
+        print(f"✗ Document {document_id} failed: {e}")
+
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
+# ── Upload ────────────────────────────────────────────────────────────────────
+
+@router.post("/upload", response_model=DocumentOut, status_code=202)
+async def upload_document(
+    request: Request,
+    background_tasks: BackgroundTasks,
     conversation_id: str = Form(...),
     file: UploadFile = File(...),
     user_id: str = Depends(get_current_user),
 ):
+    """
+    Upload a PDF. Returns immediately with status='processing'.
+    Poll GET /documents/{id} until status becomes 'ready' or 'failed'.
+    """
     if not file.filename.endswith(".pdf"):
         raise HTTPException(400, "Only PDF files are supported right now")
 
@@ -29,42 +75,77 @@ async def upload_test(
     )
     document_id = str(doc["id"])
 
-    # Upload to Supabase Storage
     storage_path = upload_file(user_id, document_id, file.filename, contents)
     await pool.execute(
         "UPDATE documents SET storage_path = $2 WHERE id = $1",
         doc["id"], storage_path
     )
-
     await doc_repo.update_document_status(pool, doc["id"], "processing")
 
-    try:
-        # Write to a temp file since pypdf needs a file path/stream
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-            tmp.write(contents)
-            tmp_path = tmp.name
-
-        pages = extract_text_from_pdf(tmp_path)
-        chunks = chunk_text(pages)
-
-        texts = [c["text"] for c in chunks]
-        embeddings = embed_texts(texts)
-
-        # Use document_id as the collection name - isolates each document's chunks
-        chunk_count = store_chunks(document_id, chunks, embeddings)
-
-        await doc_repo.update_document_status(pool, doc["id"], "ready")
-        print(f"✓ Document {document_id} ready with {chunk_count} chunks")
-
-    except Exception as e:
-        await doc_repo.update_document_status(pool, doc["id"], "failed", error_message=str(e))
-        print(f"✗ Document {document_id} failed: {e}")
-        raise HTTPException(500, f"Document processing failed: {e}")
-
-    finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+    # Queue processing — returns to caller immediately
+    background_tasks.add_task(_process_document, pool, document_id, None, contents)
 
     doc["storage_path"] = storage_path
-    doc["status"] = "ready"
+    doc["status"] = "processing"
     return doc
+
+
+# ── NEW: list documents for a conversation ────────────────────────────────────
+
+@router.get("", response_model=list[DocumentOut])
+async def list_documents(
+    conversation_id: str = Query(..., description="Filter by conversation"),
+    user_id: str = Depends(get_current_user),
+):
+    """Return all documents uploaded to a specific conversation."""
+    pool = get_pool()
+    return await doc_repo.list_documents_by_conversation(pool, conversation_id, user_id)
+
+
+# ── NEW: get single document (for status polling) ─────────────────────────────
+
+@router.get("/{document_id}", response_model=DocumentOut)
+async def get_document(
+    document_id: str,
+    user_id: str = Depends(get_current_user),
+):
+    """Get document metadata and current processing status."""
+    pool = get_pool()
+    doc = await doc_repo.get_document(pool, document_id, user_id)
+    if doc is None:
+        raise HTTPException(404, "Document not found")
+    return doc
+
+
+# ── Retrieve chunks (debug / advanced) ───────────────────────────────────────
+
+class RetrieveRequest(BaseModel):
+    question: str
+    top_k: int = 5
+
+
+@router.post("/{document_id}/retrieve")
+async def retrieve_from_document(
+    document_id: str,
+    body: RetrieveRequest,
+    user_id: str = Depends(get_current_user),
+):
+    pool = get_pool()
+
+    doc = await pool.fetchrow(
+        "SELECT id, status, chroma_collection_id FROM documents WHERE id = $1 AND user_id = $2",
+        document_id, user_id
+    )
+    if doc is None:
+        raise HTTPException(404, "Document not found")
+    if doc["status"] != "ready":
+        raise HTTPException(400, f"Document is not ready yet (status: {doc['status']})")
+
+    query_vec = embed_query(body.question)
+    results = query_collection(doc["chroma_collection_id"] or document_id, query_vec, top_k=body.top_k)
+
+    return {
+        "question": body.question,
+        "document_id": document_id,
+        "results": results
+    }
