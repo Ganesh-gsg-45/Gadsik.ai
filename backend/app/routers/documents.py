@@ -9,7 +9,13 @@ from ..schemas.document import DocumentOut
 from ..storage.supabase_storage import upload_file
 from ..rag.chunking import extract_text_from_pdf, chunk_text
 from ..rag.embeddings import embed_texts, embed_query
-from ..rag.chroma_store import store_chunks, query_collection
+from ..rag.chroma_store import store_chunks, query_collection, get_all_chunks
+from ..llm.gemini_client import generate_reply
+from ..db.usage import log_usage_event
+from ..rag.risk_analysis import analyze_contract_risks
+from ..schemas.risk import RiskAnalysisOut
+from ..rag.finance_analysis import analyze_finance_terms
+from ..schemas.finance import FinanceAnalysisOut
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -34,9 +40,13 @@ async def _process_document(pool, document_id: str, tmp_path: str, contents: byt
 
         chunk_count = store_chunks(document_id, chunks, embeddings)
 
+        full_text = "\n\n".join(
+            f"[Page {p['page_number']}]: {p['text']}" for p in pages
+        )
+
         await pool.execute(
-            "UPDATE documents SET chroma_collection_id = $2 WHERE id = $1",
-            document_id, document_id
+            "UPDATE documents SET chroma_collection_id = $2, full_text = $3 WHERE id = $1",
+            document_id, document_id, full_text
         )
         await doc_repo.update_document_status(pool, document_id, "ready")
         print(f"✓ Document {document_id} ready with {chunk_count} chunks")
@@ -148,4 +158,79 @@ async def retrieve_from_document(
         "question": body.question,
         "document_id": document_id,
         "results": results
-    }
+    }
+
+
+# ── Full-Text Risk Analysis Endpoint ──────────────────────────────────────────
+
+@router.post("/{document_id}/analyze-risks", response_model=RiskAnalysisOut)
+async def analyze_risks(
+    document_id: str,
+    user_id: str = Depends(get_current_user),
+):
+    pool = get_pool()
+
+    doc = await pool.fetchrow(
+        "SELECT id, status, full_text FROM documents WHERE id = $1 AND user_id = $2",
+        document_id, user_id
+    )
+    if doc is None:
+        raise HTTPException(404, "Document not found")
+    if doc["status"] != "ready":
+        raise HTTPException(400, f"Document is not ready yet (status: {doc['status']})")
+    if not doc["full_text"]:
+        raise HTTPException(400, "No extracted text available for this document")
+
+    result = analyze_contract_risks(doc["full_text"])
+
+    try:
+        await log_usage_event(pool, user_id, "risk_analysis", result["tokens_used"])
+    except Exception:
+        pass
+
+    return {
+        "document_id": document_id,
+        "overall_risk_score": result["overall_risk_score"],
+        "overall_risk_level": result["overall_risk_level"],
+        "summary": result["summary"],
+        "risks": result["risks"],
+        "tokens_used": result["tokens_used"]
+    }
+
+
+# ── Full-Text Finance Analysis Endpoint ────────────────────────────────────────
+
+@router.post("/{document_id}/analyze-finance", response_model=FinanceAnalysisOut)
+async def analyze_finance(
+    document_id: str,
+    user_id: str = Depends(get_current_user),
+):
+    pool = get_pool()
+
+    doc = await pool.fetchrow(
+        "SELECT id, status, full_text FROM documents WHERE id = $1 AND user_id = $2",
+        document_id, user_id
+    )
+    if doc is None:
+        raise HTTPException(404, "Document not found")
+    if doc["status"] != "ready":
+        raise HTTPException(400, f"Document is not ready yet (status: {doc['status']})")
+    if not doc["full_text"]:
+        raise HTTPException(400, "No extracted text available for this document")
+
+    result = analyze_finance_terms(doc["full_text"])
+
+    try:
+        await log_usage_event(pool, user_id, "finance_analysis", result["tokens_used"])
+    except Exception:
+        pass
+
+    return {
+        "document_id": document_id,
+        "financial_health_score": result["financial_health_score"],
+        "financial_health_level": result["financial_health_level"],
+        "summary": result["summary"],
+        "financial_terms": result["financial_terms"],
+        "tokens_used": result["tokens_used"]
+    }
+

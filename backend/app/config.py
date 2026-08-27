@@ -16,8 +16,11 @@ class Settings:
     GEMINI_API_KEY: str = os.environ["GEMINI_API_KEY"]
     SUPABASE_SERVICE_ROLE_KEY: str = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
     SUPABASE_ANON_KEY: str = os.environ.get("SUPABASE_ANON_KEY", "")
+    GROQ_API_KEY: str = os.environ["GROQ_API_KEY"]
 
     # Vector store — always resolved to an absolute path
-    CHROMA_PATH: str = str(_BACKEND_DIR / "chroma_db")
+    # Naming the folder with a dot prefix (.chroma_db) prevents uvicorn --reload from
+    # scanning it and restarting the server during runtime writes.
+    CHROMA_PATH: str = str(_BACKEND_DIR / ".chroma_db")
 
 settings = Settings()

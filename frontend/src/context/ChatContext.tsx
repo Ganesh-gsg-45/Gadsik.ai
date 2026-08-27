@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { api } from '../api/client';
 import type { Conversation, Document, Message } from '../types';
 import { useAuth } from './AuthContext';
@@ -127,7 +127,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const pollDocumentStatus = async (documentId: string) => {
     if (!token) return;
-    const maxAttempts = 30;
+    const maxAttempts = 150;
     let attempts = 0;
 
     const interval = setInterval(async () => {

@@ -26,6 +26,7 @@ CREATE TABLE documents (
     status TEXT NOT NULL DEFAULT 'pending'
         CHECK (status IN ('pending', 'processing', 'ready', 'failed')),
     error_message TEXT,
+    full_text TEXT,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 

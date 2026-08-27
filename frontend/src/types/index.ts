@@ -1,4 +1,4 @@
-﻿export interface User {
+export interface User {
   id: string;
   email: string;
 }
@@ -51,4 +51,40 @@ export interface RetrievalResponse {
   question: string;
   document_id: string;
   results: RetrievedChunk[];
+}
+
+export interface RiskItem {
+  category: 'compliance' | 'legal' | 'financial';
+  clause_evidence: string;
+  page_number: number | null;
+  severity: 'high' | 'medium' | 'low';
+  explanation: string;
+  recommendation: string;
+}
+
+export interface RiskAnalysisResult {
+  document_id: string;
+  overall_risk_score: number;
+  overall_risk_level: 'low' | 'medium' | 'high';
+  summary: string;
+  risks: RiskItem[];
+  tokens_used: number;
+}
+
+export interface FinancialTerm {
+  category: 'settlement_terms' | 'fee_structure' | 'penalties_and_chargebacks' | 'cash_flow_impact';
+  clause_evidence: string;
+  page_number: number | null;
+  impact: 'favorable' | 'neutral' | 'unfavorable';
+  estimated_impact: string;
+  recommendation: string;
+}
+
+export interface FinanceAnalysisResult {
+  document_id: string;
+  financial_health_score: number;
+  financial_health_level: 'poor' | 'moderate' | 'good';
+  summary: string;
+  financial_terms: FinancialTerm[];
+  tokens_used: number;
 }

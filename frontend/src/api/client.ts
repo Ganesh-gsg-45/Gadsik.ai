@@ -1,4 +1,4 @@
-﻿import type { Conversation, Document, Message, RetrievalResponse } from '../types';
+import type { Conversation, Document, Message, RetrievalResponse, RiskAnalysisResult, FinanceAnalysisResult } from '../types';
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -156,6 +156,31 @@ class ApiClient {
     if (!res.ok) throw new Error(`Failed to retrieve document chunks: ${res.statusText}`);
     return res.json();
   }
+
+  async analyzeDocumentRisks(token: string, documentId: string): Promise<RiskAnalysisResult> {
+    const res = await fetch(`${API_BASE_URL}/documents/${documentId}/analyze-risks`, {
+      method: 'POST',
+      headers: this.getHeaders(token),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || 'Failed to analyze document risks');
+    }
+    return res.json();
+  }
+
+  async analyzeDocumentFinance(token: string, documentId: string): Promise<FinanceAnalysisResult> {
+    const res = await fetch(`${API_BASE_URL}/documents/${documentId}/analyze-finance`, {
+      method: 'POST',
+      headers: this.getHeaders(token),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || 'Failed to analyze document finances');
+    }
+    return res.json();
+  }
 }
 
 export const api = new ApiClient();
+

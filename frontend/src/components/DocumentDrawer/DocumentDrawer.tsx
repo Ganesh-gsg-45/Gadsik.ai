@@ -1,4 +1,4 @@
-﻿import React, { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   X,
   FileText,
@@ -11,7 +11,8 @@ import {
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
-import type { RetrievedChunk } from '../../types';
+import type { RetrievedChunk, Document as ContractDocument } from '../../types';
+import { AnalysisReportModal } from '../Analysis/AnalysisReportModal';
 import './DocumentDrawer.css';
 
 interface DocumentDrawerProps {
@@ -28,6 +29,7 @@ export const DocumentDrawer: React.FC<DocumentDrawerProps> = ({ isOpen, onClose 
   const [testQuery, setTestQuery] = useState('');
   const [retrievedChunks, setRetrievedChunks] = useState<RetrievedChunk[]>([]);
   const [isRetrieving, setIsRetrieving] = useState(false);
+  const [selectedDocForAnalysis, setSelectedDocForAnalysis] = useState<ContractDocument | null>(null);
 
   if (!isOpen) return null;
 
@@ -129,13 +131,31 @@ export const DocumentDrawer: React.FC<DocumentDrawerProps> = ({ isOpen, onClose 
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                           Collection: {doc.chroma_collection_id ? 'Indexed ✓' : 'Pending'}
                         </span>
-                        <button
-                          className={`select-doc-btn ${isActive ? 'selected' : ''}`}
-                          onClick={() => setActiveDocument(isActive ? null : doc)}
-                          disabled={doc.status !== 'ready'}
-                        >
-                          {isActive ? 'Active for Q&A ✓' : 'Use in Chat'}
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            className="analyze-doc-btn"
+                            onClick={() => setSelectedDocForAnalysis(doc)}
+                            disabled={doc.status !== 'ready'}
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              background: '#2c2c35',
+                              border: '1px solid #444',
+                              color: '#ccc',
+                              borderRadius: '4px',
+                              cursor: doc.status === 'ready' ? 'pointer' : 'not-allowed',
+                            }}
+                          >
+                            📊 Analyze
+                          </button>
+                          <button
+                            className={`select-doc-btn ${isActive ? 'selected' : ''}`}
+                            onClick={() => setActiveDocument(isActive ? null : doc)}
+                            disabled={doc.status !== 'ready'}
+                          >
+                            {isActive ? 'Active for Q&A ✓' : 'Use in Chat'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -186,6 +206,15 @@ export const DocumentDrawer: React.FC<DocumentDrawerProps> = ({ isOpen, onClose 
             </div>
           )}
         </div>
+        {/* Modal Analysis Report */}
+        {selectedDocForAnalysis && (
+          <AnalysisReportModal
+            token={token || ''}
+            documentId={selectedDocForAnalysis.id}
+            documentName={selectedDocForAnalysis.filename}
+            onClose={() => setSelectedDocForAnalysis(null)}
+          />
+        )}
       </div>
     </div>
   );

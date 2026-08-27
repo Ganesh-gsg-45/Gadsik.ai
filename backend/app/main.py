@@ -6,6 +6,7 @@ from slowapi.errors import RateLimitExceeded
 from .auth.dependencies import get_current_user
 from .db.connection import connect_db, disconnect_db, get_pool
 from .routers import conversations, documents
+from .rag.embeddings import get_embedding_model
 
 from .llm.gemini_client import generate_reply
 
@@ -31,7 +32,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,6 +44,10 @@ app.include_router(documents.router)
 @app.on_event("startup")
 async def on_startup():
     await connect_db()
+    # Pre-warm embedding model in a background thread to prevent blocking server startup.
+    # This avoids long connection hangs during startup/reloads when HuggingFace is slow.
+    import threading
+    threading.Thread(target=get_embedding_model, daemon=True).start()
 
 @app.on_event("shutdown")
 async def on_shutdown():
@@ -76,4 +81,10 @@ def test_gemini():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run(
+        "app.main:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=True,
+        reload_excludes=["chroma_db/*", ".chroma_db/*", "*.sqlite3"],
+    )

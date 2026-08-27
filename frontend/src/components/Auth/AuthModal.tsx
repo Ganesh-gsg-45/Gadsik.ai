@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Sparkles, Zap } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './AuthModal.css';
@@ -30,6 +30,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       // Error handled in AuthContext
     }
   };
+
+
 
   const handleFastTestLogin = async () => {
     try {
@@ -93,18 +95,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </button>
         </form>
 
-        <div className="fast-login-divider">or quick access</div>
-
-        {/* 1-Click Test Login */}
-        <button
-          type="button"
-          className="fast-test-btn"
-          onClick={handleFastTestLogin}
-          disabled={isLoading}
-        >
-          <Zap size={16} color="#f59e0b" />
-          <span>Login with Test Account (Ganesh)</span>
-        </button>
+        {import.meta.env.DEV && (
+          <>
+            <div className="fast-login-divider">or quick access</div>
+            <button
+              type="button"
+              className="fast-test-btn"
+              onClick={handleFastTestLogin}
+              disabled={isLoading}
+            >
+              <Zap size={16} color="#f59e0b" />
+              <span>Login with Test Account (Ganesh)</span>
+            </button>
+          </>
+        )}
 
         <div className="auth-toggle-link">
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}

@@ -55,3 +55,21 @@ def query_collection(collection_name: str, query_embedding: list[float], top_k: 
             "distance": results["distances"][0][i]
         })
     return retrieved
+
+
+def get_all_chunks(collection_name: str) -> list[dict]:
+    """
+    Retrieves all chunks from a collection for full-text analysis.
+    """
+    collection = get_or_create_collection(collection_name)
+    data = collection.get()
+    chunks = []
+    if data and data.get("documents"):
+        for i, doc_text in enumerate(data["documents"]):
+            page_num = data["metadatas"][i].get("page_number", 1) if data.get("metadatas") else 1
+            chunks.append({
+                "chunk_id": data["ids"][i],
+                "text": doc_text,
+                "page_number": page_num
+            })
+    return chunks

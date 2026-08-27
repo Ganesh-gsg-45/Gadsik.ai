@@ -9,7 +9,7 @@ def generate_reply(prompt: str) -> tuple[str, int]:
     tokens_used comes from the real usage_metadata in the response.
     """
     response = client.models.generate_content(
-        model="gemini-flash-latest",
+        model="gemini-2.5-flash",
         contents=prompt,
     )
     tokens_used = 0

@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../api/supabase';
 import type { User } from '../types';
 
@@ -61,8 +61,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser({ id: session.user.id, email: session.user.email || '' });
         setToken(session.access_token);
         localStorage.setItem('gadsik_token', session.access_token);
-      } else {
-        // Auto-login with test account
+      } else if (import.meta.env.DEV) {
+        // Auto-login with test account only in DEV mode
         signInWithTestAccount().catch(() => {});
       }
       setIsLoading(false);

@@ -6,7 +6,7 @@ from ..db import messages as msg_repo
 from ..db.usage import log_usage_event
 from ..schemas.conversation import ConversationCreate, ConversationOut
 from ..schemas.message import MessageCreate, MessageOut
-from ..llm.gemini_client import generate_reply
+from ..llm.groq_client import generate_reply
 from ..rag.embeddings import embed_query
 from ..rag.chroma_store import query_collection
 from pydantic import BaseModel
