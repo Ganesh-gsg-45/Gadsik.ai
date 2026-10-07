@@ -1,0 +1,147 @@
+.doc-summary-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.doc-summary-modal {
+  background: var(--bg-card, #1e1e24);
+  border: 1px solid var(--border-color, #2d2d38);
+  border-radius: var(--radius-lg, 12px);
+  width: 100%;
+  max-width: 680px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.doc-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color, #2d2d38);
+}
+
+.summary-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
+.summary-filename {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.summary-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #8e8ea0);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.summary-close-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary, #fff);
+}
+
+.doc-summary-content {
+  padding: 1.25rem;
+  overflow-y: auto;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-secondary, #d1d1db);
+}
+
+.summary-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  gap: 1rem;
+  color: var(--text-muted, #8e8ea0);
+}
+
+.summary-spinner {
+  animation: spin 1s linear infinite;
+  color: var(--accent-primary, #3b82f6);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.summary-error-state {
+  padding: 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  color: #f87171;
+}
+
+.summary-badge-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.summary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color, #2d2d38);
+  border-radius: 20px;
+  color: var(--text-muted, #aaa);
+}
+
+.summary-markdown h1,
+.summary-markdown h2,
+.summary-markdown h3 {
+  color: var(--text-primary, #fff);
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.summary-markdown ul {
+  padding-left: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.summary-markdown li {
+  margin-bottom: 0.25rem;
+}

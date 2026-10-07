@@ -12,10 +12,6 @@ from ..rag.embeddings import embed_texts, embed_query
 from ..rag.chroma_store import store_chunks, query_collection, get_all_chunks
 from ..llm.gemini_client import generate_reply
 from ..db.usage import log_usage_event
-from ..rag.risk_analysis import analyze_contract_risks
-from ..schemas.risk import RiskAnalysisOut
-from ..rag.finance_analysis import analyze_finance_terms
-from ..schemas.finance import FinanceAnalysisOut
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -100,7 +96,7 @@ async def upload_document(
     return doc
 
 
-# ── NEW: list documents for a conversation ────────────────────────────────────
+# ── List documents for a conversation ────────────────────────────────────
 
 @router.get("", response_model=list[DocumentOut])
 async def list_documents(
@@ -112,7 +108,7 @@ async def list_documents(
     return await doc_repo.list_documents_by_conversation(pool, conversation_id, user_id)
 
 
-# ── NEW: get single document (for status polling) ─────────────────────────────
+# ── Get single document (for status polling) ─────────────────────────────
 
 @router.get("/{document_id}", response_model=DocumentOut)
 async def get_document(
@@ -127,7 +123,7 @@ async def get_document(
     return doc
 
 
-# ── Retrieve chunks (debug / advanced) ───────────────────────────────────────
+# ── Retrieve chunks (semantic search query) ───────────────────────────────────
 
 class RetrieveRequest(BaseModel):
     question: str
@@ -161,17 +157,18 @@ async def retrieve_from_document(
     }
 
 
-# ── Full-Text Risk Analysis Endpoint ──────────────────────────────────────────
+# ── Document Summary Endpoint ────────────────────────────────────────────────
 
-@router.post("/{document_id}/analyze-risks", response_model=RiskAnalysisOut)
-async def analyze_risks(
+@router.post("/{document_id}/summarize")
+async def summarize_document(
     document_id: str,
     user_id: str = Depends(get_current_user),
 ):
+    """Generates an executive overview and key topics summary for any document."""
     pool = get_pool()
 
     doc = await pool.fetchrow(
-        "SELECT id, status, full_text FROM documents WHERE id = $1 AND user_id = $2",
+        "SELECT id, filename, status, full_text FROM documents WHERE id = $1 AND user_id = $2",
         document_id, user_id
     )
     if doc is None:
@@ -181,56 +178,33 @@ async def analyze_risks(
     if not doc["full_text"]:
         raise HTTPException(400, "No extracted text available for this document")
 
-    result = analyze_contract_risks(doc["full_text"])
+    sample_text = doc["full_text"][:25000]
+
+    prompt = f"""You are an advanced RAG Document Assistant.
+Provide a clear, high-level structural overview and summary of this document.
+
+Document Title: {doc['filename']}
+Text Sample:
+{sample_text}
+
+Format your response in Markdown with:
+1. Executive Summary (2-3 sentences)
+2. Core Themes & Covered Topics (bullet points)
+3. Target Audience / Intended Purpose
+4. Key Terms / Concepts
+"""
+
+    summary_text, tokens_used = generate_reply(prompt)
 
     try:
-        await log_usage_event(pool, user_id, "risk_analysis", result["tokens_used"])
+        await log_usage_event(pool, user_id, "document_summary", tokens_used)
     except Exception:
         pass
 
     return {
         "document_id": document_id,
-        "overall_risk_score": result["overall_risk_score"],
-        "overall_risk_level": result["overall_risk_level"],
-        "summary": result["summary"],
-        "risks": result["risks"],
-        "tokens_used": result["tokens_used"]
-    }
-
-
-# ── Full-Text Finance Analysis Endpoint ────────────────────────────────────────
-
-@router.post("/{document_id}/analyze-finance", response_model=FinanceAnalysisOut)
-async def analyze_finance(
-    document_id: str,
-    user_id: str = Depends(get_current_user),
-):
-    pool = get_pool()
-
-    doc = await pool.fetchrow(
-        "SELECT id, status, full_text FROM documents WHERE id = $1 AND user_id = $2",
-        document_id, user_id
-    )
-    if doc is None:
-        raise HTTPException(404, "Document not found")
-    if doc["status"] != "ready":
-        raise HTTPException(400, f"Document is not ready yet (status: {doc['status']})")
-    if not doc["full_text"]:
-        raise HTTPException(400, "No extracted text available for this document")
-
-    result = analyze_finance_terms(doc["full_text"])
-
-    try:
-        await log_usage_event(pool, user_id, "finance_analysis", result["tokens_used"])
-    except Exception:
-        pass
-
-    return {
-        "document_id": document_id,
-        "financial_health_score": result["financial_health_score"],
-        "financial_health_level": result["financial_health_level"],
-        "summary": result["summary"],
-        "financial_terms": result["financial_terms"],
-        "tokens_used": result["tokens_used"]
+        "filename": doc["filename"],
+        "summary": summary_text,
+        "tokens_used": tokens_used
     }
 

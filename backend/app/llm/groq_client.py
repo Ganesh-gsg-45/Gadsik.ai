@@ -3,7 +3,7 @@ from ..config import settings
 
 client = Groq(api_key=settings.GROQ_API_KEY)
 
-def generate_reply(prompt: str, model: str = "openai/gpt-oss-20b") -> tuple[str, int]:
+def generate_reply(prompt: str, model: str = "llama-3.3-70b-versatile") -> tuple[str, int]:
     """
     Call Groq API for ultra-fast response times.
     Returns (reply_text, tokens_used).

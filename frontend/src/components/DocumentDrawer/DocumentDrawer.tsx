@@ -12,7 +12,7 @@ import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 import type { RetrievedChunk, Document as ContractDocument } from '../../types';
-import { AnalysisReportModal } from '../Analysis/AnalysisReportModal';
+import { DocumentSummaryModal } from '../DocumentSummary/DocumentSummaryModal';
 import './DocumentDrawer.css';
 
 interface DocumentDrawerProps {
@@ -29,7 +29,7 @@ export const DocumentDrawer: React.FC<DocumentDrawerProps> = ({ isOpen, onClose 
   const [testQuery, setTestQuery] = useState('');
   const [retrievedChunks, setRetrievedChunks] = useState<RetrievedChunk[]>([]);
   const [isRetrieving, setIsRetrieving] = useState(false);
-  const [selectedDocForAnalysis, setSelectedDocForAnalysis] = useState<ContractDocument | null>(null);
+  const [selectedDocForSummary, setSelectedDocForSummary] = useState<ContractDocument | null>(null);
 
   if (!isOpen) return null;
 
@@ -83,10 +83,10 @@ export const DocumentDrawer: React.FC<DocumentDrawerProps> = ({ isOpen, onClose 
           >
             <UploadCloud size={24} color="var(--accent-primary)" />
             <div className="drawer-upload-text">
-              {isUploading ? 'Uploading & Processing PDF...' : 'Upload PDF Document'}
+              {isUploading ? 'Uploading & Indexing PDF...' : 'Upload PDF Document'}
             </div>
             <div className="drawer-upload-subtext">
-              PDFs are split into 500-char chunks & indexed with MiniLM embeddings
+              Indexed into semantic vector embeddings for intelligent RAG Q&A
             </div>
           </div>
 
@@ -134,7 +134,7 @@ export const DocumentDrawer: React.FC<DocumentDrawerProps> = ({ isOpen, onClose 
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             className="analyze-doc-btn"
-                            onClick={() => setSelectedDocForAnalysis(doc)}
+                            onClick={() => setSelectedDocForSummary(doc)}
                             disabled={doc.status !== 'ready'}
                             style={{
                               padding: '6px 12px',
@@ -146,7 +146,7 @@ export const DocumentDrawer: React.FC<DocumentDrawerProps> = ({ isOpen, onClose 
                               cursor: doc.status === 'ready' ? 'pointer' : 'not-allowed',
                             }}
                           >
-                            📊 Analyze
+                            📖 Overview
                           </button>
                           <button
                             className={`select-doc-btn ${isActive ? 'selected' : ''}`}
@@ -206,16 +206,17 @@ export const DocumentDrawer: React.FC<DocumentDrawerProps> = ({ isOpen, onClose 
             </div>
           )}
         </div>
-        {/* Modal Analysis Report */}
-        {selectedDocForAnalysis && (
-          <AnalysisReportModal
+        {/* Modal Document Summary */}
+        {selectedDocForSummary && (
+          <DocumentSummaryModal
             token={token || ''}
-            documentId={selectedDocForAnalysis.id}
-            documentName={selectedDocForAnalysis.filename}
-            onClose={() => setSelectedDocForAnalysis(null)}
+            documentId={selectedDocForSummary.id}
+            documentName={selectedDocForSummary.filename}
+            onClose={() => setSelectedDocForSummary(null)}
           />
         )}
       </div>
     </div>
   );
 };
+

@@ -1,4 +1,4 @@
-import type { Conversation, Document, Message, RetrievalResponse, RiskAnalysisResult, FinanceAnalysisResult } from '../types';
+import type { Conversation, Document, Message, RetrievalResponse, DocumentSummaryResult } from '../types';
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -157,26 +157,14 @@ class ApiClient {
     return res.json();
   }
 
-  async analyzeDocumentRisks(token: string, documentId: string): Promise<RiskAnalysisResult> {
-    const res = await fetch(`${API_BASE_URL}/documents/${documentId}/analyze-risks`, {
+  async summarizeDocument(token: string, documentId: string): Promise<DocumentSummaryResult> {
+    const res = await fetch(`${API_BASE_URL}/documents/${documentId}/summarize`, {
       method: 'POST',
       headers: this.getHeaders(token),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(err.detail || 'Failed to analyze document risks');
-    }
-    return res.json();
-  }
-
-  async analyzeDocumentFinance(token: string, documentId: string): Promise<FinanceAnalysisResult> {
-    const res = await fetch(`${API_BASE_URL}/documents/${documentId}/analyze-finance`, {
-      method: 'POST',
-      headers: this.getHeaders(token),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(err.detail || 'Failed to analyze document finances');
+      throw new Error(err.detail || 'Failed to summarize document');
     }
     return res.json();
   }

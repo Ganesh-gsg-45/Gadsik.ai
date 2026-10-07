@@ -18,10 +18,12 @@ def _get_user_id_for_limiter(request: Request) -> str:
     """
     auth = request.headers.get("authorization", "")
     if auth.startswith("Bearer "):
-        # We can't re-validate the JWT here cheaply, so we use the raw token as
-        # a unique key.  The full validation still happens in get_current_user.
-        return auth[7:20]  # first 13 chars of token — unique enough for keying
-    return request.client.host
+        token = auth.removeprefix("Bearer ").strip()
+        # Use signature portion or sha256 to guarantee unique bucket per user
+        import hashlib
+        return hashlib.sha256(token.encode()).hexdigest()[:16]
+    return request.client.host if request.client else "unknown"
+
 
 
 limiter = Limiter(key_func=_get_user_id_for_limiter)

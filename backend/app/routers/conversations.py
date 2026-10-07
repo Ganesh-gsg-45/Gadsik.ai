@@ -6,7 +6,7 @@ from ..db import messages as msg_repo
 from ..db.usage import log_usage_event
 from ..schemas.conversation import ConversationCreate, ConversationOut
 from ..schemas.message import MessageCreate, MessageOut
-from ..llm.groq_client import generate_reply
+from ..llm.gemini_client import generate_reply
 from ..rag.embeddings import embed_query
 from ..rag.chroma_store import query_collection
 from pydantic import BaseModel
@@ -132,23 +132,29 @@ async def send_message(
         # Retrieve relevant chunks for this specific question
         query_vec = embed_query(body.content)
         retrieved_chunks = query_collection(
-            doc["chroma_collection_id"] or body.document_id, query_vec, top_k=5
+            doc["chroma_collection_id"] or body.document_id, query_vec, top_k=6
         )
 
-        context = "\n\n".join(
-            f"[Page {c['page_number']}]: {c['text']}" for c in retrieved_chunks
-        )
+        context_snippets = []
+        for c in retrieved_chunks:
+            context_snippets.append(f"--- [Page {c['page_number']}] ---\n{c['text']}")
+        context = "\n\n".join(context_snippets)
 
-        prompt = f"""You are answering a question using ONLY the context provided below, 
-which comes from a document the user uploaded. If the context doesn't contain 
-enough information to answer, say so honestly.
+        prompt = f"""You are an accurate, intelligent RAG Document Assistant.
+Answer the user's question accurately using ONLY the provided document context.
 
-Context:
+Guidelines:
+1. Provide a comprehensive, accurate answer grounded directly in the context.
+2. ALWAYS cite the source pages when mentioning facts or concepts, like: `(Source: Page X)`.
+3. If the context does not contain sufficient details to answer, state clearly what is missing and only answer what can be substantiated.
+4. Do NOT make up facts or extrapolate beyond what is supported by the text.
+
+Document Context:
 {context}
 
-Question: {body.content}
+User Question: {body.content}
 
-Answer:"""
+Helpful Answer:"""
 
     else:
         # No document - plain chat, use conversation history as before
