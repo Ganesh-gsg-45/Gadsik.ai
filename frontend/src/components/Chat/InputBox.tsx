@@ -1,4 +1,4 @@
-﻿import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   ArrowUp,
   Paperclip,
@@ -8,8 +8,11 @@ import {
   Loader2,
   Sparkles,
   Square,
+  Mic,
+  MicOff,
 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
+import { useVoiceAssistant } from '../../hooks/useVoiceAssistant';
 import './InputBox.css';
 
 interface InputBoxProps {
@@ -35,6 +38,13 @@ export const InputBox: React.FC<InputBoxProps> = ({
   const [useSearch, setUseSearch] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    isListening,
+    isSttSupported,
+    toggleListening,
+    stopListening,
+  } = useVoiceAssistant();
 
   useEffect(() => {
     if (initialValue) {
@@ -62,6 +72,9 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
   const handleSubmit = () => {
     if (!input.trim() || isGenerating) return;
+    if (isListening) {
+      stopListening();
+    }
     onSend(input.trim());
     setInput('');
     if (textareaRef.current) {
@@ -76,9 +89,22 @@ export const InputBox: React.FC<InputBoxProps> = ({
     }
   };
 
+  // Toggle voice recognition
+  const handleToggleVoice = () => {
+    toggleListening((spokenTranscript) => {
+      setInput((prev) => {
+        const cleanPrev = prev.trim();
+        return cleanPrev ? `${cleanPrev} ${spokenTranscript}` : spokenTranscript;
+      });
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+    });
+  };
+
   return (
     <div className="input-capsule-wrapper">
-      <div className="input-capsule">
+      <div className={`input-capsule ${isListening ? 'listening-glow' : ''}`}>
         {/* Attached Document Pill */}
         {activeDocument && (
           <div className="attached-doc-chip" onClick={onOpenDocDrawer} style={{ cursor: 'pointer' }}>
@@ -102,15 +128,34 @@ export const InputBox: React.FC<InputBoxProps> = ({
           </div>
         )}
 
+        {/* Voice Listening Active Wave Banner */}
+        {isListening && (
+          <div className="voice-listening-banner">
+            <div className="voice-banner-left">
+              <span className="voice-pulse-ring" />
+              <span className="voice-listening-text">Voice Assistant is listening... Speak your question</span>
+            </div>
+            <div className="voice-wave-bars">
+              <span className="wave-bar bar-1" />
+              <span className="wave-bar bar-2" />
+              <span className="wave-bar bar-3" />
+              <span className="wave-bar bar-4" />
+              <span className="wave-bar bar-5" />
+            </div>
+          </div>
+        )}
+
         {/* Text Area */}
         <textarea
           ref={textareaRef}
           className="chat-textarea"
           rows={1}
           placeholder={
-            activeDocument
-              ? `Ask anything about "${activeDocument.filename}" (or general knowledge)...`
-              : "Ask Gadsik anything, or attach a PDF to search..."
+            isListening
+              ? "Listening to your voice..."
+              : activeDocument
+              ? `Ask anything about "${activeDocument.filename}" (or click Voice)...`
+              : "Ask Gadsik anything, speak with Voice Assistant, or attach a PDF..."
           }
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -141,6 +186,24 @@ export const InputBox: React.FC<InputBoxProps> = ({
               )}
               <span>{isUploading ? 'Uploading...' : 'Attach PDF'}</span>
             </button>
+
+            {/* Voice Assistant Microphone Button */}
+            {isSttSupported && (
+              <button
+                type="button"
+                className={`tool-icon-btn voice-btn ${isListening ? 'active-listening' : ''}`}
+                onClick={handleToggleVoice}
+                title={isListening ? "Listening... Click to stop" : "Speak to Gadsik (Voice Assistant)"}
+                disabled={isGenerating}
+              >
+                {isListening ? (
+                  <MicOff size={14} color="#ef4444" />
+                ) : (
+                  <Mic size={14} color="var(--accent-primary)" />
+                )}
+                <span>{isListening ? 'Stop' : 'Voice'}</span>
+              </button>
+            )}
 
             <button
               className={`tool-icon-btn ${useSearch ? 'active' : ''}`}

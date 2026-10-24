@@ -14,6 +14,7 @@ from .llm.gemini_client import generate_reply
 
 from .limiter import limiter
 
+import os
 import asyncio
 import threading
 from contextlib import asynccontextmanager
@@ -39,9 +40,13 @@ async def db_connect_error_handler(request: Request, exc: httpx.ConnectError):
         }
     )
 
+allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "")
+custom_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_origins=custom_origins if custom_origins else ["*"],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?|https://.*\.vercel\.app|https://.*\.onrender\.com",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

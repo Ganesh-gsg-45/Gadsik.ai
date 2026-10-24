@@ -1,4 +1,4 @@
-﻿.input-capsule-wrapper {
+.input-capsule-wrapper {
   position: relative;
   width: 100%;
   max-width: 820px;
@@ -23,6 +23,86 @@
   box-shadow: var(--shadow-input-focus);
   border-color: var(--accent-primary);
   background: var(--bg-input-focus);
+.input-capsule.listening-glow {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.35);
+}
+
+/* Voice Listening Banner */
+.voice-listening-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.8rem;
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15));
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: var(--radius-sm);
+  animation: fadeIn 0.2s ease;
+}
+
+.voice-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.voice-pulse-ring {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 10px #ef4444;
+  animation: pulseRecording 1.2s infinite ease-in-out;
+}
+
+@keyframes pulseRecording {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+.voice-listening-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.voice-wave-bars {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 16px;
+}
+
+.wave-bar {
+  width: 3px;
+  background: #8b5cf6;
+  border-radius: 2px;
+  animation: soundWave 0.8s infinite ease-in-out alternate;
+}
+
+.bar-1 { height: 6px; animation-delay: 0.1s; }
+.bar-2 { height: 14px; animation-delay: 0.25s; }
+.bar-3 { height: 8px; animation-delay: 0.4s; }
+.bar-4 { height: 16px; animation-delay: 0.15s; }
+.bar-5 { height: 7px; animation-delay: 0.3s; }
+
+@keyframes soundWave {
+  0% { height: 4px; }
+  100% { height: 16px; }
+}
+
+.tool-icon-btn.voice-btn.active-listening {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  animation: pulseListeningBtn 1.5s infinite;
+}
+
+@keyframes pulseListeningBtn {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
 /* Attached Document Chip */

@@ -1,4 +1,4 @@
-﻿.message-row {
+.message-row {
   display: flex;
   gap: 1rem;
   padding: 1.5rem 0;
@@ -102,6 +102,19 @@
   background: var(--bg-pill-hover);
   color: var(--text-primary);
   border-color: var(--border-medium);
+}
+
+.msg-action-btn.voice-speak-btn.speaking-active {
+  background: rgba(139, 92, 246, 0.2);
+  border-color: #8b5cf6;
+  color: #a78bfa;
+  animation: pulseSpeakingBtn 1.5s infinite;
+}
+
+@keyframes pulseSpeakingBtn {
+  0% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
+  70% { box-shadow: 0 0 0 5px rgba(139, 92, 246, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
 }
 
 .token-badge {

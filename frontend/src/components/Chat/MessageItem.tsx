@@ -7,9 +7,12 @@ import {
   Check,
   RotateCcw,
   Zap,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import type { Message } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { useVoiceAssistant } from '../../hooks/useVoiceAssistant';
 import './MessageItem.css';
 import '../../styles/markdown.css';
 
@@ -22,6 +25,15 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onRegenerate 
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
   const isAssistant = message.role === 'assistant';
+
+  const {
+    isSpeaking,
+    speakingMessageId,
+    isTtsSupported,
+    toggleSpeaking,
+  } = useVoiceAssistant();
+
+  const isSpeakingThis = isSpeaking && speakingMessageId === message.id;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content);
@@ -85,6 +97,22 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onRegenerate 
                 {copied ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
                 <span>{copied ? 'Copied' : 'Copy'}</span>
               </button>
+
+              {/* Voice Read-Aloud / Speech Synthesis */}
+              {isTtsSupported && (
+                <button
+                  className={`msg-action-btn voice-speak-btn ${isSpeakingThis ? 'speaking-active' : ''}`}
+                  onClick={() => toggleSpeaking(message.content, message.id)}
+                  title={isSpeakingThis ? "Stop speaking" : "Listen to response aloud"}
+                >
+                  {isSpeakingThis ? (
+                    <VolumeX size={13} color="#ef4444" />
+                  ) : (
+                    <Volume2 size={13} color="var(--accent-primary)" />
+                  )}
+                  <span>{isSpeakingThis ? 'Stop' : 'Listen'}</span>
+                </button>
+              )}
 
               {onRegenerate && (
                 <button className="msg-action-btn" onClick={onRegenerate} title="Regenerate">
