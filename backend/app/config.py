@@ -12,15 +12,15 @@ _BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 class Settings:
     SUPABASE_URL: str = os.environ["SUPABASE_URL"]
-    DATABASE_URL: str = os.environ["DATABASE_URL"]
+    DATABASE_URL: str = os.environ.get("DATABASE_URL", "")
     GEMINI_API_KEY: str = os.environ["GEMINI_API_KEY"]
     SUPABASE_SERVICE_ROLE_KEY: str = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
     SUPABASE_ANON_KEY: str = os.environ.get("SUPABASE_ANON_KEY", "")
-    GROQ_API_KEY: str = os.environ["GROQ_API_KEY"]
+    GROQ_API_KEY: str = os.environ.get("GROQ_API_KEY", "")
 
     # Vector store — always resolved to an absolute path
     # Naming the folder with a dot prefix (.chroma_db) prevents uvicorn --reload from
     # scanning it and restarting the server during runtime writes.
     CHROMA_PATH: str = str(_BACKEND_DIR / ".chroma_db")
 
-settings = Settings()
+settings = Settings()

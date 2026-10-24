@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -34,6 +34,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onRegenerate 
     return (
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        urlTransform={(url) => (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:') ? url : '')}
         components={{
           code({ className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || '');

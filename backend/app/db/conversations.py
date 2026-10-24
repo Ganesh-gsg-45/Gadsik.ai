@@ -1,68 +1,68 @@
-import asyncpg
+import asyncio
+from datetime import datetime, timezone
 from typing import Optional
 
-async def create_conversation(pool: asyncpg.Pool, user_id: str, title: str | None = None):
-    row = await pool.fetchrow(
-        """
-        INSERT INTO conversations (user_id, title)
-        VALUES ($1, $2)
-        RETURNING id, user_id, title, created_at, updated_at
-        """,
-        user_id, title
-    )
-    return dict(row)
+async def create_conversation(client, user_id: str, title: str | None = None):
+    data = {
+        "user_id": str(user_id),
+        "title": title or "New Chat"
+    }
+    res = await asyncio.to_thread(lambda: client.table("conversations").insert(data).execute())
+    return res.data[0] if res.data else None
 
 async def list_conversations(
-    pool: asyncpg.Pool,
+    client,
     user_id: str,
     limit: int = 50,
     offset: int = 0,
 ):
-    rows = await pool.fetch(
-        """
-        SELECT id, user_id, title, created_at, updated_at
-        FROM conversations
-        WHERE user_id = $1
-        ORDER BY updated_at DESC
-        LIMIT $2 OFFSET $3
-        """,
-        user_id, limit, offset
+    res = await asyncio.to_thread(
+        lambda: client.table("conversations")
+        .select("id, user_id, title, created_at, updated_at")
+        .eq("user_id", str(user_id))
+        .order("updated_at", desc=True)
+        .range(offset, offset + limit - 1)
+        .execute()
     )
-    return [dict(row) for row in rows]
+    return res.data or []
 
-async def get_conversation(pool: asyncpg.Pool, conversation_id: str, user_id: str):
-    row = await pool.fetchrow(
-        """
-        SELECT id, user_id, title, created_at, updated_at
-        FROM conversations
-        WHERE id = $1 AND user_id = $2
-        """,
-        conversation_id, user_id
+async def get_conversation(client, conversation_id: str, user_id: str):
+    res = await asyncio.to_thread(
+        lambda: client.table("conversations")
+        .select("id, user_id, title, created_at, updated_at")
+        .eq("id", str(conversation_id))
+        .eq("user_id", str(user_id))
+        .maybe_single()
+        .execute()
     )
-    return dict(row) if row else None
+    return res.data
 
 async def update_conversation(
-    pool: asyncpg.Pool,
+    client,
     conversation_id: str,
     user_id: str,
     title: Optional[str] = None,
 ) -> Optional[dict]:
     """Rename a conversation. Only fields that are not None are updated."""
-    row = await pool.fetchrow(
-        """
-        UPDATE conversations
-        SET title = COALESCE($3, title),
-            updated_at = now()
-        WHERE id = $1 AND user_id = $2
-        RETURNING id, user_id, title, created_at, updated_at
-        """,
-        conversation_id, user_id, title
-    )
-    return dict(row) if row else None
+    data = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    if title is not None:
+        data["title"] = title
 
-async def delete_conversation(pool: asyncpg.Pool, conversation_id: str, user_id: str) -> None:
-    """Delete a conversation (messages cascade via FK)."""
-    await pool.execute(
-        "DELETE FROM conversations WHERE id = $1 AND user_id = $2",
-        conversation_id, user_id
-    )
+    res = await asyncio.to_thread(
+        lambda: client.table("conversations")
+        .update(data)
+        .eq("id", str(conversation_id))
+        .eq("user_id", str(user_id))
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+async def delete_conversation(client, conversation_id: str, user_id: str) -> None:
+    """Delete a conversation (messages and documents cascade or are removed)."""
+    await asyncio.to_thread(
+        lambda: client.table("conversations")
+        .delete()
+        .eq("id", str(conversation_id))
+        .eq("user_id", str(user_id))
+        .execute()
+    )

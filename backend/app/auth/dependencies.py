@@ -4,7 +4,7 @@ from fastapi import Header, HTTPException
 from ..config import settings
 
 JWKS_URL = f"{settings.SUPABASE_URL}/auth/v1/.well-known/jwks.json"
-jwks_client = PyJWKClient(JWKS_URL)
+jwks_client = PyJWKClient(JWKS_URL, cache_keys=True, max_cached_keys=16, lifespan=3600)
 
 def get_current_user(authorization: str = Header(...)) -> str:
     if not authorization.startswith("Bearer "):
@@ -19,6 +19,7 @@ def get_current_user(authorization: str = Header(...)) -> str:
             signing_key.key,
             algorithms=["ES256"],
             audience="authenticated",
+            issuer=f"{settings.SUPABASE_URL}/auth/v1",
         )
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")

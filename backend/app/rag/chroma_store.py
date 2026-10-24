@@ -23,7 +23,10 @@ def store_chunks(collection_name: str, chunks: list[dict], embeddings: list[list
 
     ids = [str(chunk["chunk_id"]) for chunk in chunks]
     texts = [chunk["text"] for chunk in chunks]
-    metadatas = [{"page_number": chunk["page_number"]} for chunk in chunks]
+    metadatas = [
+        {"page_number": chunk["page_number"], "document_id": collection_name}
+        for chunk in chunks
+    ]
 
     collection.add(
         ids=ids,
@@ -33,6 +36,18 @@ def store_chunks(collection_name: str, chunks: list[dict], embeddings: list[list
     )
 
     return collection.count()
+
+
+def delete_collection(collection_name: str) -> bool:
+    """
+    Deletes a Chroma collection by name. Silently succeeds if it does not exist.
+    """
+    client = get_chroma_client()
+    try:
+        client.delete_collection(name=collection_name)
+        return True
+    except Exception:
+        return False
 
 
 def query_collection(collection_name: str, query_embedding: list[float], top_k: int = 5) -> list[dict]:

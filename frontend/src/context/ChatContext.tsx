@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { api } from '../api/client';
 import type { Conversation, Document, Message } from '../types';
 import { useAuth } from './AuthContext';
@@ -38,6 +38,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [backendHealthy, setBackendHealthy] = useState<boolean>(false);
+
+  // Synchronization refs to eliminate race conditions & leaks
+  const activeConversationIdRef = useRef<string | null>(null);
+  activeConversationIdRef.current = currentConversationId;
+  const selectRequestIdRef = useRef<number>(0);
+  const pollingIntervalsRef = useRef<Map<string, ReturnJSInterval>>(new Map());
+
+  // Cleanup polling intervals on unmount
+  useEffect(() => {
+    return () => {
+      pollingIntervalsRef.current.forEach((intervalId) => clearInterval(intervalId));
+      pollingIntervalsRef.current.clear();
+    };
+  }, []);
 
   // Check health periodically
   useEffect(() => {
@@ -79,17 +93,25 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const selectConversation = async (id: string) => {
     if (!token) return;
     setCurrentConversationId(id);
+    const requestId = ++selectRequestIdRef.current;
+
     try {
       const [fetchedMessages, fetchedDocs] = await Promise.all([
         api.listMessages(token, id),
         api.listDocuments(token, id),
       ]);
+
+      // Guard against out-of-order resolution if user quickly switched chats
+      if (selectRequestIdRef.current !== requestId) return;
+
       setMessages(fetchedMessages);
       setDocuments(fetchedDocs);
       const readyDoc = fetchedDocs.find((d) => d.status === 'ready') || fetchedDocs[0] || null;
       setActiveDocument(readyDoc);
     } catch (err) {
-      console.error('Failed to load conversation details:', err);
+      if (selectRequestIdRef.current === requestId) {
+        console.error('Failed to load conversation details:', err);
+      }
     }
   };
 
@@ -116,7 +138,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await api.deleteConversation(token, id);
       setConversations((prev) => prev.filter((c) => c.id !== id));
-      if (currentConversationId === id) {
+      if (activeConversationIdRef.current === id) {
         newChat();
       }
     } catch (err) {
@@ -125,10 +147,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  type ReturnJSInterval = ReturnType<typeof setInterval>;
+
   const pollDocumentStatus = async (documentId: string) => {
     if (!token) return;
     const maxAttempts = 150;
     let attempts = 0;
+
+    // Clear any existing polling interval for this document
+    if (pollingIntervalsRef.current.has(documentId)) {
+      clearInterval(pollingIntervalsRef.current.get(documentId)!);
+      pollingIntervalsRef.current.delete(documentId);
+    }
 
     const interval = setInterval(async () => {
       attempts += 1;
@@ -138,15 +168,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (doc.status === 'ready' || doc.status === 'failed' || attempts >= maxAttempts) {
           clearInterval(interval);
-          if (doc.status === 'ready') {
+          pollingIntervalsRef.current.delete(documentId);
+          if (doc.status === 'ready' && activeConversationIdRef.current) {
             setActiveDocument(doc);
           }
         }
       } catch (err) {
         console.error('Polling document error:', err);
         clearInterval(interval);
+        pollingIntervalsRef.current.delete(documentId);
       }
     }, 2000);
+
+    pollingIntervalsRef.current.set(documentId, interval);
   };
 
   const uploadDocument = async (file: File): Promise<Document | null> => {
@@ -214,25 +248,28 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeDocument?.id || null
       );
 
-      // Replace optimistic message & add assistant response
-      setMessages((prev) => {
-        const filtered = prev.filter((m) => m.id !== optimisticMsg.id);
-        return [...filtered, optimisticMsg, assistantMsg];
-      });
+      // Only update messages if user is still viewing the same conversation
+      if (activeConversationIdRef.current === convId) {
+        setMessages((prev) => {
+          const filtered = prev.filter((m) => m.id !== optimisticMsg.id);
+          return [...filtered, optimisticMsg, assistantMsg];
+        });
+      }
 
       // Refresh conversations list to update order/updated_at
       refreshConversations();
     } catch (err: any) {
       console.error('Send message failed:', err);
-      // Append error message from assistant
-      const errorMsg: Message = {
-        id: `err-${Date.now()}`,
-        conversation_id: convId || 'error',
-        role: 'assistant',
-        content: `⚠️ **Error:** ${err.message || 'Something went wrong while processing your query. Please check your network or try again.'}`,
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      if (activeConversationIdRef.current === convId) {
+        const errorMsg: Message = {
+          id: `err-${Date.now()}`,
+          conversation_id: convId || 'error',
+          role: 'assistant',
+          content: `⚠️ **Error:** ${err.message || 'Something went wrong while processing your query. Please check your network or try again.'}`,
+          created_at: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+      }
     } finally {
       setIsGenerating(false);
     }

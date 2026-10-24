@@ -1,22 +1,22 @@
-import asyncpg
+import asyncio
 from typing import Optional
 
-
 async def log_usage_event(
-    pool: asyncpg.Pool,
+    client,
     user_id: str,
     event_type: str,
     tokens_used: Optional[int] = None,
 ) -> None:
     """
-    Insert a row into usage_events.
-    Called after every Gemini API response so we have an audit trail
-    of token consumption per user.
+    Insert a row into usage_events in Supabase.
+    Called after every LLM API response to log token consumption.
     """
-    await pool.execute(
-        """
-        INSERT INTO usage_events (user_id, event_type, tokens_used)
-        VALUES ($1, $2, $3)
-        """,
-        user_id, event_type, tokens_used,
-    )
+    data = {
+        "user_id": str(user_id),
+        "event_type": event_type,
+        "tokens_used": tokens_used,
+    }
+    try:
+        await asyncio.to_thread(lambda: client.table("usage_events").insert(data).execute())
+    except Exception:
+        pass

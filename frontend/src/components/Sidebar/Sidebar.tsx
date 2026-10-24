@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   MessageSquare,
   Plus,
@@ -7,7 +7,6 @@ import {
   Edit2,
   Check,
   X,
-  Sparkles,
   Sun,
   Moon,
   Settings,
@@ -111,9 +110,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Header */}
       <div className="sidebar-header">
         <a href="#" onClick={(e) => { e.preventDefault(); newChat(); }} className="brand-logo">
-          <div className="brand-icon">
-            <Sparkles size={18} />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Gadsik.ai logo"
+            style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '6px', flexShrink: 0 }}
+          />
           <span>Gadsik.ai</span>
           <span className="brand-badge">2.0 RAG</span>
         </a>

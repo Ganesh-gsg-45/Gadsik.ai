@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './AuthModal.css';
 
@@ -48,7 +48,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         {/* Header */}
         <div className="auth-modal-header">
           <div className="auth-logo-icon">
-            <Sparkles size={24} />
+            <img
+              src="/logo.png"
+              alt="Gadsik.ai"
+              style={{ width: '64px', height: '64px', objectFit: 'contain', borderRadius: '12px' }}
+            />
           </div>
           <div className="auth-title">
             {isSignUp ? 'Create your account' : 'Welcome to Gadsik.ai'}
@@ -95,7 +99,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </button>
         </form>
 
-        {import.meta.env.DEV && (
+        {import.meta.env.DEV && Boolean(import.meta.env.VITE_TEST_USER_EMAIL) && (
           <>
             <div className="fast-login-divider">or quick access</div>
             <button
@@ -105,7 +109,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               disabled={isLoading}
             >
               <Zap size={16} color="#f59e0b" />
-              <span>Login with Test Account (Ganesh)</span>
+              <span>Login with Test Account</span>
             </button>
           </>
         )}

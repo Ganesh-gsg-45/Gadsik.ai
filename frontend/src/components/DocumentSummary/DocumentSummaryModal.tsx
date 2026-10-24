@@ -85,7 +85,10 @@ export const DocumentSummaryModal: React.FC<Props> = ({
                 )}
               </div>
               <div className="summary-markdown">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  urlTransform={(url) => (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:') ? url : '')}
+                >
                   {data.summary}
                 </ReactMarkdown>
               </div>

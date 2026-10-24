@@ -26,8 +26,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     setError(null);
     try {
-      const email = 'tarigondaganesh1234@gmail.com';
-      const password = 'Ganesh9618@gsg';
+      const email = import.meta.env.VITE_TEST_USER_EMAIL;
+      const password = import.meta.env.VITE_TEST_USER_PASSWORD;
+
+      if (!email || !password) {
+        throw new Error(
+          'Test credentials are not configured. Set VITE_TEST_USER_EMAIL and VITE_TEST_USER_PASSWORD in frontend/.env'
+        );
+      }
 
       let session = (await supabase.auth.signInWithPassword({ email, password })).data?.session;
       if (!session) {
@@ -61,8 +67,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser({ id: session.user.id, email: session.user.email || '' });
         setToken(session.access_token);
         localStorage.setItem('gadsik_token', session.access_token);
-      } else if (import.meta.env.DEV) {
-        // Auto-login with test account only in DEV mode
+      } else if (
+        import.meta.env.DEV &&
+        import.meta.env.VITE_TEST_USER_EMAIL &&
+        import.meta.env.VITE_TEST_USER_PASSWORD
+      ) {
+        // Auto-login with test account only in DEV mode if configured
         signInWithTestAccount().catch(() => {});
       }
       setIsLoading(false);

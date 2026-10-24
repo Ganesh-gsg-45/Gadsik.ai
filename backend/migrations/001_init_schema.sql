@@ -40,4 +40,29 @@ CREATE TABLE usage_events (
 
 CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at);
 CREATE INDEX idx_conversations_user ON conversations(user_id, updated_at DESC);
+CREATE INDEX idx_documents_conv_user ON documents(conversation_id, user_id);
+CREATE INDEX idx_documents_user ON documents(user_id);
 CREATE INDEX idx_usage_user_time ON usage_events(user_id, created_at);
+
+-- Row-Level Security
+ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE usage_events ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own conversations"
+    ON conversations FOR ALL TO authenticated
+    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage messages in their conversations"
+    ON messages FOR ALL TO authenticated
+    USING (EXISTS (SELECT 1 FROM conversations WHERE conversations.id = messages.conversation_id AND conversations.user_id = auth.uid()))
+    WITH CHECK (EXISTS (SELECT 1 FROM conversations WHERE conversations.id = messages.conversation_id AND conversations.user_id = auth.uid()));
+
+CREATE POLICY "Users can manage their own documents"
+    ON documents FOR ALL TO authenticated
+    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can view their own usage events"
+    ON usage_events FOR SELECT TO authenticated
+    USING (auth.uid() = user_id);
