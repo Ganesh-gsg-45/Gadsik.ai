@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import type { Message } from '../../types';
 import { useAuth } from '../../context/AuthContext';
-import { useVoiceAssistant } from '../../hooks/useVoiceAssistant';
+import { useVoice } from '../../context/VoiceContext';
 import './MessageItem.css';
 import '../../styles/markdown.css';
 
@@ -31,7 +31,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onRegenerate 
     speakingMessageId,
     isTtsSupported,
     toggleSpeaking,
-  } = useVoiceAssistant();
+  } = useVoice();
 
   const isSpeakingThis = isSpeaking && speakingMessageId === message.id;
 

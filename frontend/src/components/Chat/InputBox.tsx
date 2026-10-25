@@ -10,9 +10,10 @@ import {
   Square,
   Mic,
   MicOff,
+  Check,
 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
-import { useVoiceAssistant } from '../../hooks/useVoiceAssistant';
+import { useVoice } from '../../context/VoiceContext';
 import './InputBox.css';
 
 interface InputBoxProps {
@@ -36,15 +37,18 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
   const [input, setInput] = useState(initialValue);
   const [useSearch, setUseSearch] = useState(false);
+  const baseInputBeforeVoiceRef = useRef<string>('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     isListening,
+    liveTranscript,
     isSttSupported,
-    toggleListening,
+    startListening,
     stopListening,
-  } = useVoiceAssistant();
+    toggleListening,
+  } = useVoice();
 
   useEffect(() => {
     if (initialValue) {
@@ -77,6 +81,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
     }
     onSend(input.trim());
     setInput('');
+    baseInputBeforeVoiceRef.current = '';
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
@@ -89,17 +94,21 @@ export const InputBox: React.FC<InputBoxProps> = ({
     }
   };
 
-  // Toggle voice recognition
+  // Toggle voice recognition with smooth live transcription
   const handleToggleVoice = () => {
-    toggleListening((spokenTranscript) => {
-      setInput((prev) => {
-        const cleanPrev = prev.trim();
-        return cleanPrev ? `${cleanPrev} ${spokenTranscript}` : spokenTranscript;
+    if (isListening) {
+      stopListening();
+    } else {
+      baseInputBeforeVoiceRef.current = input.trim();
+      startListening((transcript) => {
+        const base = baseInputBeforeVoiceRef.current;
+        const newText = base ? `${base} ${transcript}` : transcript;
+        setInput(newText);
+        if (textareaRef.current) {
+          textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+        }
       });
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-      }
-    });
+    }
   };
 
   return (
@@ -133,14 +142,30 @@ export const InputBox: React.FC<InputBoxProps> = ({
           <div className="voice-listening-banner">
             <div className="voice-banner-left">
               <span className="voice-pulse-ring" />
-              <span className="voice-listening-text">Voice Assistant is listening... Speak your question</span>
+              <div className="voice-banner-text-group">
+                <span className="voice-listening-title">Listening...</span>
+                <span className="voice-listening-preview">
+                  {liveTranscript ? `"${liveTranscript}"` : 'Speak your question now...'}
+                </span>
+              </div>
             </div>
-            <div className="voice-wave-bars">
-              <span className="wave-bar bar-1" />
-              <span className="wave-bar bar-2" />
-              <span className="wave-bar bar-3" />
-              <span className="wave-bar bar-4" />
-              <span className="wave-bar bar-5" />
+            <div className="voice-banner-right">
+              <div className="voice-wave-bars">
+                <span className="wave-bar bar-1" />
+                <span className="wave-bar bar-2" />
+                <span className="wave-bar bar-3" />
+                <span className="wave-bar bar-4" />
+                <span className="wave-bar bar-5" />
+              </div>
+              <button
+                type="button"
+                className="voice-banner-done-btn"
+                onClick={stopListening}
+                title="Finish speaking"
+              >
+                <Check size={13} />
+                <span>Done</span>
+              </button>
             </div>
           </div>
         )}
@@ -193,7 +218,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
                 type="button"
                 className={`tool-icon-btn voice-btn ${isListening ? 'active-listening' : ''}`}
                 onClick={handleToggleVoice}
-                title={isListening ? "Listening... Click to stop" : "Speak to Gadsik (Voice Assistant)"}
+                title={isListening ? "Stop listening" : "Speak to Gadsik (Voice Assistant)"}
                 disabled={isGenerating}
               >
                 {isListening ? (

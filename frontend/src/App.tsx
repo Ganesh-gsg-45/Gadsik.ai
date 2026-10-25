@@ -1,6 +1,7 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { ChatProvider } from './context/ChatContext';
+import { VoiceProvider } from './context/VoiceContext';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { ChatArea } from './components/Chat/ChatArea';
 import { DocumentDrawer } from './components/DocumentDrawer/DocumentDrawer';
@@ -81,7 +82,9 @@ export default function App() {
   return (
     <AuthProvider>
       <ChatProvider>
-        <MainApp />
+        <VoiceProvider>
+          <MainApp />
+        </VoiceProvider>
       </ChatProvider>
     </AuthProvider>
   );
